@@ -1,22 +1,31 @@
 function praktika7()
 %% Created by L_DelOff
-global time A f T N k
+global type_of_noise time A f A_n1 A_n2 T N k
 %% Пункт №1
-T=0.00001;    % Период дискретизации
-%% Основные параметры
-A=1;        % амплитуда сигнала[В]
-f=1000;       % частота сигнала[Гц]
-time=10/f;    % всё время моделирования[с]
-N=8;        % количество каналов при подсчёте ДПФ
-k=5;        % интересующий нас канал
 
-[s,t]=punkt1();
+%% Основные параметры
+% сигнал
+A=1;        % амплитуда сигнала[В]
+f=50000;       % частота сигнала[Гц]
+% модель
+T=0.00001;    % Период дискретизации
+time=10/f;    % всё время моделирования[с]
+% когерентный накопитель
+N=8;        % количество каналов при подсчёте ДПФ
+k=4;        % интересующий нас канал = k+1
+% шум
+    % максимальная амплитуда шума[В]
+A_n1=0.01; %равномерного
+A_n2=1000; %для нормального закона это множитель, который надо подгонять под цифру выше (шум 2)
+type_of_noise=2; % выбор типа шума (1 или 2)
+
+[s,n,t]=punkt1();
 % s - массив значений сигнала
 % t - массив значений времени
 %% Пункт 2
-y=punkt2(s,t);
+y=punkt2(s,n,t);
 % y = 
-% [ выход ЦФ, если подать сигнал      ]
+% [ выход ЦФ, если подать сигнал]
 %%
 %% Пункт 3
 report=punkt3(s,y,t);
@@ -41,14 +50,26 @@ a=1;
 fprintf('Конец');
 end
 
-function [s,t]=punkt1()
-global time A f T
+function [s,n,t]=punkt1()
+global type_of_noise time A f A_n1 A_n2 T
 %% Задаю наблюдаемый промежуток времени
 t=0:T:time;
 %% Создаю комплексный гармонический сигнал
 s=A*exp(1i*2*pi*f*t);
+%% Создаю шум
+n=[];
+%n=[случайные числа (только rand())         ... это шум по равномерному распределению ...] 
+%  [случайные числа (сложил много раз rand) ... это шум по нормальному распределению ... ]                               ]
+for i=0:T:time
+    n(1,end+1)=A_n1*((2*rand()-1)+1i*(2*rand()-1)); %Шум с равномерным распределением
+    n(2,end)=0;
+    for j=1:1000
+        n(2,end)=n(2,end)+A_n1*((2*rand()-1)+1i*(2*rand()-1)); %Шум с нормальным распределением
+    end
+    n(2,end)=n(2,end)/1000*A_n2;
+end
 %% Формирование сигнала(графики)
-    function grafiki1(s,t)
+    function grafiki1(s,n,t)
         figure(11)
         %% Чистый сигнал (действительная часть)
         subplot(2,1,1)
@@ -63,13 +84,53 @@ s=A*exp(1i*2*pi*f*t);
         grid on
         title('s=Im[A*e^{j*2\pift}]')
         xlabel('Время, с')
-        ylabel('s(t), В')                
+        ylabel('s(t), В')
+        %% Шум (действительная часть)
+        figure(12)
+        subplot(2,2,1)
+        plot(t,real(n(type_of_noise,:)))
+        grid on
+        title('Re[n(t)]')
+        xlabel('Время, с')
+        ylabel('n(t), В')
+        ylim([-1 1])
+        %% Шум (мнимая часть)
+        subplot(2,2,2)
+        plot(t,imag(n(type_of_noise,:)))
+        grid on
+        title('Im[n(t)]')
+        xlabel('Время, с')
+        ylabel('s(t), В')
+        ylim([-1 1])
+        %% Полный сигнал (действительная часть) 
+        subplot(2,2,3)
+        plot(t,real(s+n(type_of_noise,:)))
+        grid on
+        title('Re[s(t)+n(t)]')
+        xlabel('Время, с')
+        ylabel('s(t), В')
+        %% Полный сигнал (мнимая часть) 
+        subplot(2,2,4)
+        plot(t,imag(s+n(type_of_noise,:)))
+        grid on
+        title('Im[s(t)+n(t)]')
+        xlabel('Время, с')
+        ylabel('s(t), В')
+        %% Распределение шума
+        figure(13)
+        hist(real(n(1,:)),20)
+        grid on
+        title('Шум(равномерный закон)')
+        figure(14)
+        hist(real(n(2,:)),20)
+        grid on
+        title('Шум(нормальный закон)')        
     end
 %% Раскоментировать, если нужны графики
-grafiki1(s,t)
+%grafiki1(s,n,t)
 end
 
-function y=punkt2(s,t)
+function y=punkt2(s,n,t)
 global T N k
 %% Разностное уравнение фильтра
     function y=filter(x)
@@ -130,7 +191,7 @@ y(1,:)=y_s;
         title('s=Re[A*e^{j*2\pift}]')
         xlabel('Время, с')
         ylabel('s(t), В')
-        ylim(ylimit);
+        %ylim(ylimit);
         %%
         subplot(2,2,2)
         plot(t,imag(s))
@@ -138,7 +199,7 @@ y(1,:)=y_s;
         title('s=Im[A*e^{j*2\pift}]')
         xlabel('Время, с')
         ylabel('s(t), В')
-        ylim(ylimit);
+        %ylim(ylimit);
         %%
         subplot(2,2,3)
         plot(t,real(y_s))
@@ -146,7 +207,7 @@ y(1,:)=y_s;
         title('Сигнал на выходе фильтра(действительная часть)')
         xlabel('Время, с')
         ylabel('y(t), В')
-        ylim(ylimit);
+        %ylim(ylimit);
         %%
         subplot(2,2,4)
         plot(t,imag(y_s))
@@ -154,11 +215,11 @@ y(1,:)=y_s;
         title('Сигнал на выходе фильтра(мнимая часть)')
         xlabel('Время, с')
         ylabel('y(t), В')
-        ylim(ylimit);        
+        %ylim(ylimit);        
     end
 %% Раскоментировать, если нужны графики
-%grafiki2(s,t,y_s);
-
+grafiki2(s,t,y_s);
+a=1;
 end
 
 function report=punkt3(s,noise,y,t)
