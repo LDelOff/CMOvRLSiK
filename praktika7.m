@@ -131,13 +131,15 @@ end
 end
 
 function y=punkt2(s,n,t)
-global T N k
+global T N k f A
 %% Разностное уравнение фильтра
     function y=filter(x)
         sum=0;
         deltaw=2*pi/(N*T);
+        eta=2*pi*f/deltaw;
         for n=0:N-1
-            sum=sum+x*exp(-1i*deltaw*T*n*k);
+            %sum=sum+x*exp(-1i*deltaw*T*n*k);
+            sum=sum+exp(-1i*deltaw*T*n*(eta-k));
         end
         y=sum;        
     end
@@ -170,7 +172,6 @@ global T N k
     end
 %% Раскоментировать, если нужны графики
 cfr1();
-
 %% прохождение сингала через цифровой фильтр
 y_s=0;
 for i=2:length(s)
@@ -181,7 +182,7 @@ y(1,:)=y_s;
     function grafiki2(s,t,y_s) 
         %% Аналогично реальные и мнимые части на входе и выходе ЦФ
         % Пределы по оси Y
-        ylimit=[-2 2];        
+        ylimit=[-1.5*A 1.5*A];        
         %% s(t)
         figure(24)
         %%
@@ -191,7 +192,7 @@ y(1,:)=y_s;
         title('s=Re[A*e^{j*2\pift}]')
         xlabel('Время, с')
         ylabel('s(t), В')
-        %ylim(ylimit);
+        ylim(ylimit);
         %%
         subplot(2,2,2)
         plot(t,imag(s))
@@ -199,7 +200,7 @@ y(1,:)=y_s;
         title('s=Im[A*e^{j*2\pift}]')
         xlabel('Время, с')
         ylabel('s(t), В')
-        %ylim(ylimit);
+        ylim(ylimit);
         %%
         subplot(2,2,3)
         plot(t,real(y_s))
@@ -219,7 +220,6 @@ y(1,:)=y_s;
     end
 %% Раскоментировать, если нужны графики
 grafiki2(s,t,y_s);
-a=1;
 end
 
 function report=punkt3(s,noise,y,t)
