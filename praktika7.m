@@ -14,7 +14,7 @@ time=10/f;    % всё время моделирования[с]
 N=8;        % количество каналов при подсчёте ДПФ
 k=4;        % интересующий нас канал = k+1
 % шум
-    % максимальная амплитуда шума[В]
+% максимальная амплитуда шума[В]
 A_n1=0.01; %равномерного
 A_n2=1000; %для нормального закона это множитель, который надо подгонять под цифру выше (шум 2)
 type_of_noise=2; % выбор типа шума (1 или 2)
@@ -28,23 +28,23 @@ y=punkt2(s,n,t);
 % [ выход ЦФ, если подать сигнал]
 %%
 %% Пункт 3
-report=punkt3(s,y,t);
-% report =
+[report_all,report_sn]=punkt3(s,n,y)
+% report_all =
 % среднее(мат ожидание) СКО дисперсия
 % x                     x   x
 % ...                   ... ...
-
+save('report_all.mat','report_all');
 %% Внимание, эти строки нужны для построения зависимости SNR от амплитуды сигнала
-%%Выполнить эти две строки для создания/обнуления таблицы
-%report_new=[]
-%save('report.mat','report_new');
-%%Эти строки ломают код, но создают в папке таблицу(раскоментировать вместе со строками в п.3)
-%первая строка - амплитуды
-%вторая строка - значение отношения сигнал шум
-%load('report.mat','report_new');
-%report_new(1,end+1)=A;
-%report_new(2,end)=report;
-%save('report.mat','report_new');
+%%1. Выполнить эти две строки для создания/обнуления таблицы
+        %report_new=[]
+        %save('report.mat','report_new');
+%%2. Закоментировать 2 строки выше и раскоментировать дальше
+    %первая строка - амплитуды
+    %вторая строка - значение отношения сигнал шум
+    load('report.mat','report_new');
+    report_new(1,end+1)=A;
+    report_new(2,end)=report_sn;
+    save('report.mat','report_new');
 %%
 a=1;
 fprintf('Конец');
@@ -130,8 +130,8 @@ end
 %grafiki1(s,n,t)
 end
 
-function y=punkt2(s,n,t)
-global T N k f A
+function y=punkt2(s,noise,t)
+global T N k f A type_of_noise
 %% Разностное уравнение фильтра
     function y=filter(x)
         sum=0;
@@ -139,7 +139,7 @@ global T N k f A
         eta=2*pi*f/deltaw;
         for n=0:N-1
             %sum=sum+x*exp(-1i*deltaw*T*n*k);
-            sum=sum+exp(-1i*deltaw*T*n*(eta-k));
+            sum=sum+A*exp(-1i*deltaw*T*n*(eta-k));
         end
         y=sum;        
     end
@@ -173,17 +173,24 @@ global T N k f A
 %% Раскоментировать, если нужны графики
 cfr1();
 %% прохождение сингала через цифровой фильтр
-y_s=0;
-for i=2:length(s)
+y_s=[];
+y_n=[];
+y_sn=[];
+
+for i=1:length(s)
     y_s=[y_s filter(s(i))]; % прогоняю чистый сигнал через ЦФ
+    y_n=[y_n filter(noise(type_of_noise,i))]; % прогоняю чисто шум через ЦФ
+    y_sn=[y_sn filter((s(i)+noise(type_of_noise,i)))]; % прогоняю смесь через ЦФ
 end
 y(1,:)=y_s;
+y(2,:)=y_n;
+y(3,:)=y_sn;
 %% Временные диаграммы
     function grafiki2(s,t,y_s) 
         %% Аналогично реальные и мнимые части на входе и выходе ЦФ
         % Пределы по оси Y
         ylimit=[-1.5*A 1.5*A];        
-        %% s(t)
+        %% s(t) -----------------------------------
         figure(24)
         %%
         subplot(2,2,1)
@@ -216,15 +223,76 @@ y(1,:)=y_s;
         title('Сигнал на выходе фильтра(мнимая часть)')
         xlabel('Время, с')
         ylabel('y(t), В')
-        %ylim(ylimit);        
+        %ylim(ylimit); 
+        %% --------------------------------------
+        %% n(t)
+        figure(25)
+        %%
+        subplot(2,2,1)
+        plot(t,real(noise(type_of_noise,:)))
+        grid on
+        title('Re[n(t)]')
+        xlabel('Время, с')
+        ylabel('n(t), В')
+        %%
+        subplot(2,2,2)
+        plot(t,imag(noise(type_of_noise,:)))
+        grid on
+        title('Im[n(t)]')
+        xlabel('Время, с')
+        ylabel('n(t), В')
+        %%
+        subplot(2,2,3)
+        plot(t,real(y_n))
+        grid on
+        title('Шум на выходе фильтра(действительная часть)')
+        xlabel('Время, с')
+        ylabel('y(t), В')
+        %%
+        subplot(2,2,4)
+        plot(t,imag(y_n))
+        grid on
+        title('Шум на выходе фильтра(мнимая часть)')
+        xlabel('Время, с')
+        ylabel('y(t), В')
+        %% --------------------------------------
+        %% s(t)+n(t)
+        figure(26)
+        %%
+        subplot(2,2,1)
+        plot(t,real(s+noise(type_of_noise,:)))
+        grid on
+        title('Re[s(t)+n(t)]')
+        xlabel('Время, с')
+        ylabel('s(t), В')
+        %%
+        subplot(2,2,2)
+        plot(t,imag(s+noise(type_of_noise,:)))
+        grid on
+        title('Im[s(t)+n(t)]')
+        xlabel('Время, с')
+        ylabel('s(t), В')
+        %%
+        subplot(2,2,3)
+        plot(t,real(y_sn))
+        grid on
+        title('Сигнал на выходе фильтра(действительная часть)')
+        xlabel('Время, с')
+        ylabel('y(t), В')
+        %%
+        subplot(2,2,4)
+        plot(t,imag(y_sn))
+        grid on
+        title('Сигнал на выходе фильтра(мнимая часть)')
+        xlabel('Время, с')
+        ylabel('y(t), В')
     end
 %% Раскоментировать, если нужны графики
 grafiki2(s,t,y_s);
 end
 
-function report=punkt3(s,noise,y,t)
+function [report_all,report_sn]=punkt3(s,noise,y)
 global type_of_noise
-report=[]
     function report=izmerenie(x)
     %% Измерение 
     % Момент первого порядка - это математическое ожидание
@@ -245,12 +313,12 @@ report=[]
         
         report=[MEAN;RMS;RMS^2];
     end
-%% измерение отношения сигнал шум на выходе  (либо это)
-%ds=izmerenie(real(y(1,:)));
-%dn=izmerenie(real(y(2,:)));
-%report=ds(2)/dn(2);
-%% Эти строки для измерения параметров (либо это, иначе может не заработать)
-%{
+report=[];
+%% измерение отношения сигнал шум на выходе
+ds=izmerenie(real(y(1,:)));
+dn=izmerenie(real(y(2,:)));
+report_sn=ds(2)/dn(2);
+%% Эти строки для измерения параметров
 %% --------
 fprintf('Измерение параметров входного сигнала\n');
 %% сигнал(вход)
@@ -260,14 +328,14 @@ fprintf('Чистый сигнал(мнимая составляющая): \n');
 report(end+1,:)=izmerenie(imag(s));
 %% шум(вход)
 fprintf('Шум(действительная составляющая): \n');
-report(end+1,:)=izmerenie(real(n(type_of_noise,:)));
+report(end+1,:)=izmerenie(real(noise(type_of_noise,:)));
 fprintf('Шум(мнимая составляющая): \n');
-report(end+1,:)=izmerenie(imag(n(type_of_noise,:)));
+report(end+1,:)=izmerenie(imag(noise(type_of_noise,:)));
 %% сигнал+шум(вход)
 fprintf('Сигнал+шум(действительная составляющая): \n');
-report(end+1,:)=izmerenie(real(s+n(type_of_noise,:)));
+report(end+1,:)=izmerenie(real(s+noise(type_of_noise,:)));
 fprintf('Сигнал+шум(мнимая составляющая): \n');
-report(end+1,:)=izmerenie(imag(s+n(type_of_noise,:)));
+report(end+1,:)=izmerenie(imag(s+noise(type_of_noise,:)));
 %% -------------
 fprintf('Измерение параметров выходного сигнала\n');
 %% сигнал(выход)
@@ -285,7 +353,7 @@ fprintf('Сигнал+шум(действительная составляюща
 report(end+1,:)=izmerenie(real(y(3,:)));
 fprintf('Сигнал+шум(мнимая составляющая): \n');
 report(end+1,:)=izmerenie(imag(y(3,:)));
-%}
+report_all=report;
 end
 
 
